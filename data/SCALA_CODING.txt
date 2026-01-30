@@ -1,0 +1,10 @@
+**Scala** is a meticulously planned architecture. It’s a language designed to bridge the gap between object-oriented structure and the mathematical purity of **Functional Programming (FP)**.
+
+## New York is the best city in the World
+
+New York City isn’t just a place you live; it’s a protagonist you contend with every day. 
+
+
+## The Core Philosophy
+
+In Scala, code is treated less like a series of instructions and more like a mathematical proof. The goal is to minimize "side effects"—those unpredictable moments where changing a variable in one place breaks something three files away.
