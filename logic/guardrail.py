@@ -8,13 +8,19 @@ import numpy as np
 
 class Guardrail:
     def __init__(
-        self, client: OpenAI, embedding_model: str, reference_topics: list, max_buffer_size: int = 10000
+        self,
+        client: OpenAI,
+        embedding_model: str,
+        reference_topics: list,
+        return_embeddings: bool,
+        max_buffer_size: int = 10000,
     ):
         # Setting a maxlen prevents the buffer from consuming infinite memory
         self.buffer: deque = deque(maxlen=max_buffer_size)
         self.client: OpenAI = client
         self.embedding_model: str = embedding_model
         self.reference_topics: list = reference_topics
+        self.return_embeddings = False
 
     def _upload_buffer(self, item):
         self.buffer.append(item)
@@ -26,7 +32,7 @@ class Guardrail:
 
         return {
             "text": text,
-            "embedding": response["data"][0]["embedding"][:5],
+            "embedding": response["data"][0]["embedding"],
             "total_tokens": response["usage"]["total_tokens"],
         }
 
@@ -41,43 +47,95 @@ class Guardrail:
                 buffer_list = list(self.buffer)
                 self.__clear_buffer()
                 return " ".join(buffer_list)
-            
 
     def generate_topic_embeddings(self):
-        topic_emb = [self.__get_embedding(topic) for topic in self.reference_topics]
-        return topic_emb
-    
-    
-    def process(self, token, ):
+        return [self.__get_embedding(topic) for topic in self.reference_topics]
+
+    def process(self, token: str, reference: list):
         chunk_of_tokens = self.__accumulator(token)
 
         if chunk_of_tokens:
-            response = self.__get_embedding(chunk_of_tokens)
-            embedding = response["embedding"]
-            total_tokens = response["total_tokens"]
+            chunk_response = self.__get_embedding(chunk_of_tokens)
+            chunk_embedding = chunk_response["embedding"]
+            chunk_total_tokens = chunk_response["total_tokens"]
 
-            res_dict = {
-                "chunk": chunk_of_tokens,
-                "embedding": embedding,
-                "total_tokens": total_tokens,
+            reference_text = [topic["text"] for topic in reference]
+            reference_embeddings = [topic["embedding"] for topic in reference]
+
+            distances = cosine_similarity(
+                np.array(chunk_embedding).reshape(1, -1),
+                np.array(reference_embeddings)
+            )
+
+            return {
+                "chunk": {
+                    "chunk_text": chunk_of_tokens,
+                    "chunk_embedding": chunk_embedding
+                    if self.return_embeddings
+                    else None,
+                    "chunk_total_tokens": chunk_total_tokens,
+                },
+                "reference": {
+                    "reference_text": reference_text,
+                    "reference_embeddings": reference_embeddings
+                    if self.return_embeddings
+                    else None,
+                },
+                "similarity": distances,
             }
-
-            print(res_dict)
-
-        
+        else:
+            return None
 
 
-# --- Execution ---
 load_dotenv()
 
-texts = ["Io ", "vivo ", "a ", "New ", "York.", " Mi ", "piace ", "il ", "calcio."]
+texts = [
+    " Mi ",
+    "piace ",
+    "il ",
+    "calcio.",
+    " Oggi ",
+    "fa ",
+    "molto ",
+    "freddo.",
+    "Io ",
+    "vivo ",
+    "a ",
+    "New ",
+    "York.",
+    " Domani ",
+    "andrò ",
+    "al ",
+    "lavoro.",
+    " Lei ",
+    "studia ",
+    "informatica.",
+    " Noi ",
+    "mangiamo ",
+    "pizza ",
+    "insieme.",
+    " Loro ",
+    "abitano ",
+    "in ",
+    "Italia.",
+    " Io ",
+    "amo ",
+    "la ",
+    "musica.",
+]
 
-gg = Guardrail(embedding_model="text-embedding-3-small", client=OpenAI(), reference_topics=["New York", "Vivere a New York"])
-top_ref = gg.generate_topic_embeddings()
-print(top_ref)
+gg = Guardrail(
+    embedding_model="text-embedding-3-small",
+    client=OpenAI(),
+    reference_topics=["Vivere a New York"],
+    return_embeddings=False,
+)
+topics_reference = gg.generate_topic_embeddings()
+
 
 print("--- Processing Results ---")
 for token in texts:
-    result = gg.process(token=token)
+    result = gg.process(token=token, reference=topics_reference)
     if result:
-        print(" - ", result)
+        print(result)
+    print()
