@@ -35,12 +35,8 @@ def main():
 
     content = load_text("data/SCALA_CODING.txt")
 
-    previous_token = ""
-
     for token in get_tokens_from_string(encoder=encoder, string=content):
         token = encoder.decode([token])
-
-        # previous_token += token
 
         print(token, end="", flush=True)
 
