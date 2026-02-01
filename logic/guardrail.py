@@ -6,7 +6,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 
-class Guardrail:
+class StreamingGuardrail:
     def __init__(
         self,
         client: OpenAI,
@@ -43,10 +43,14 @@ class Guardrail:
         self.buffer.append(token)
 
         if strategy == "full_stop":
-            if "." in token:
+            # Better check: does the token end the sentence?
+            # Note: This still has the 'remainder' issue if the token 
+            # contains text AFTER the period.
+            if any(char in token for char in [".", "!", "?"]):
                 buffer_list = list(self.buffer)
                 self.__clear_buffer()
-                return " ".join(buffer_list)
+                return "".join(buffer_list)
+        return None
 
     def generate_topic_embeddings(self):
         return [self.__get_embedding(topic) for topic in self.reference_topics]
@@ -85,57 +89,3 @@ class Guardrail:
             }
         else:
             return None
-
-
-load_dotenv()
-
-texts = [
-    " Mi ",
-    "piace ",
-    "il ",
-    "calcio.",
-    " Oggi ",
-    "fa ",
-    "molto ",
-    "freddo.",
-    "Io ",
-    "vivo ",
-    "a ",
-    "New ",
-    "York.",
-    " Domani ",
-    "andrò ",
-    "al ",
-    "lavoro.",
-    " Lei ",
-    "studia ",
-    "informatica.",
-    " Noi ",
-    "mangiamo ",
-    "pizza ",
-    "insieme.",
-    " Loro ",
-    "abitano ",
-    "in ",
-    "Italia.",
-    " Io ",
-    "amo ",
-    "la ",
-    "musica.",
-]
-
-gg = Guardrail(
-    embedding_model="text-embedding-3-small",
-    client=OpenAI(),
-    reference_topics=["Vivere a New York"],
-    return_embeddings=False,
-)
-topics_reference = gg.generate_topic_embeddings()
-
-
-print("--- Processing Results ---")
-for token in texts:
-    result = gg.process(token=token, reference=topics_reference)
-    if result:
-        print(result)
-    print()

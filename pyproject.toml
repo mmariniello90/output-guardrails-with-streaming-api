@@ -10,4 +10,5 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "rich>=14.3.1",
     "scikit-learn>=1.8.0",
+    "tiktoken>=0.12.0",
 ]
